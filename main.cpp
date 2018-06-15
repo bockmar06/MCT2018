@@ -1,22 +1,6 @@
-// ---------------------------------------------
-//           This file is part of
-//      _  _   __    _   _    __    __
-//     ( \/ ) /__\  ( )_( )  /__\  (  )
-//      \  / /(__)\  ) _ (  /(__)\  )(__
-//      (__)(__)(__)(_) (_)(__)(__)(____)
-//
-//     Yet Another HW Abstraction Library
-//      Copyright (C) Andreas Terstegge
-//      BSD Licensed (see file LICENSE)
-//
-// ---------------------------------------------
-//
-// A simple example for displaying text, lines and
-// circles on the LCD using the uGUI library.
-// See the doc folder in YAHAL/src/uGUI for more
-// information on the uGUI API.
 
 #include "gpio_msp432.h"
+#include "timer_msp432.h"
 #include "spi_msp432.h"
 #include "st7735s_drv.h"
 #include "uGUI.h"
@@ -31,12 +15,83 @@
 
 #include <cstdlib>
 
+int taktrate=500000;
+gpio_msp432_pin taktsender( PORT_PIN(9,0) );
+gpio_msp432_pin sender( PORT_PIN(8,4) );
+gpio_msp432_pin empfaenger( PORT_PIN(7,4) );
+
+void callback1(void * arg) {
+    // Convert the argument to a gpio pointer
+    gpio_msp432_pin * gpio = static_cast<gpio_msp432_pin *>(arg);
+    // toggle the LED
+    gpio->gpioToggle();
+
+}
+
+void startTakt(timer_msp432 * timer1) {
+
+    timer1->setPeriod(taktrate, TIMER::PERIODIC);
+    timer1->setCallback(callback1, &taktsender);
+    timer1->start();
+}
+
+/**
+ * wartet bis Gegner auf 1 steht.
+ */
+void wartenAuf(gpio_msp432_pin * Gegner){
+    while(!Gegner->gpioRead()){}
+}
+
+void WriteBool(bool wert){
+    bool old = taktsender.gpioRead();
+    while(old == taktsender.gpioRead()){}
+    sender.gpioWrite(wert);
+}
+
+void sendeZahl(int zahl){
+    WriteBool(true);
+    int teiler=16;
+    while(zahl!=0){
+       bool wert= (zahl-teiler)>=0;
+       WriteBool(wert);
+       if(wert)
+           zahl=zahl-teiler;
+       teiler=teiler/2;
+    }
+    WriteBool(false);
+
+
+}
 int main(void)
 {
+
+    //leds
+    gpio_msp432_pin led1( PORT_PIN(1,0) ); // Left red LED
+    gpio_msp432_pin led2( PORT_PIN(2,0) ); // red RGB LED
+    led1.gpioMode( GPIO::OUTPUT );
+    led2.gpioMode( GPIO::OUTPUT );
+
+    //sender + empfaenger
+    taktsender.gpioMode(GPIO::OUTPUT);
+    sender.gpioMode(GPIO::OUTPUT);
+    empfaenger.gpioMode(GPIO::INPUT | GPIO::PULLDOWN);
+    sender.gpioWrite(false);
+    empfaenger.gpioWrite(false);
+
+    //timer & takt
+    timer_msp432 timer1;
+    startTakt(&timer1);
+
+    //sende Zahl
+    sendeZahl(31);
+
     // Setup SPI interface
     gpio_msp432_pin lcd_cs (PORT_PIN(5, 0));
     spi_msp432  spi(EUSCI_B0_SPI, lcd_cs);
+
     spi.setSpeed(24000000);
+
+
 
     // Setup LCD driver
     gpio_msp432_pin lcd_rst(PORT_PIN(5, 7));
@@ -90,5 +145,9 @@ int main(void)
         for (uint16_t y=80; y < 120; y++) {
             gui.DrawPixel(x, y, rand() % 0x1000000);
         }
+    }
+
+    while(true){
+
     }
 }
