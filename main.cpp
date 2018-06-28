@@ -16,10 +16,7 @@
 // See the doc folder in YAHAL/src/uGUI for more
 // information on the uGUI API.
 
-#include "gpio_msp432.h"
 #include "spi_msp432.h"
-#include "st7735s_drv.h"
-#include "uGUI.h"
 #include "uGUI_colors.h"
 #include "font_4x6.h"
 #include "font_5x8.h"
@@ -28,11 +25,14 @@
 #include "font_6x10.h"
 #include "font_7x12.h"
 #include "font_8x12.h"
+#include "String.h"
+#include "Hangwomen_GUI.h"
 
 #include <cstdlib>
 
 int main(void)
 {
+
     // Setup SPI interface
     gpio_msp432_pin lcd_cs (PORT_PIN(5, 0));
     spi_msp432  spi(EUSCI_B0_SPI, lcd_cs);
@@ -91,4 +91,6 @@ int main(void)
             gui.DrawPixel(x, y, rand() % 0x1000000);
         }
     }
+    Hangwomen_GUI hangwomen;
+    hangwomen.start("Wasserrate", &lcd, &gui);
 }
